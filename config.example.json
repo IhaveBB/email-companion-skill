@@ -1,0 +1,19 @@
+{
+  "_comment": "配置模板 - 请复制为 config.json 并填写你的邮箱信息",
+  "user_email": "your_email@qq.com",
+  "email_provider": "qq",
+  "email_password": "your_auth_code",
+  "smtp_server": "smtp.qq.com",
+  "smtp_port": 465,
+  "imap_server": "imap.qq.com",
+  "imap_port": 993,
+  "scan_interval": 15,
+  "report_time": "08:00",
+  "timezone": "Asia/Shanghai",
+  "keywords": {
+    "important": ["面试", "Offer", "简历", "入职", "笔试", "工资", "薪资", "账单", "发票", "重要", "紧急", "合同", "协议"],
+    "spam": ["验证码", "推广", "营销", "订阅", "优惠"]
+  },
+  "emotional_support": {"enabled": true, "min_length": 2000, "max_length": 5000},
+  "security": {"allow_external_send": false, "require_confirm_new_recipient": true}
+}

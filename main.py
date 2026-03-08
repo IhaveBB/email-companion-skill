@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import random
 import argparse
+import subprocess
 
 # 配置日志
 logging.basicConfig(
@@ -80,8 +81,7 @@ class EmailCompanion:
     
     def connect_smtp(self):
         try:
-            server = smtplib.SMTP(self.config['smtp_server'], self.config['smtp_port'])
-            server.starttls()
+            server = smtplib.SMTP_SSL(self.config['smtp_server'], 465)
             server.login(self.config['user_email'], self.config['email_password'])
             logger.info("SMTP 连接成功")
             return server
@@ -410,19 +410,61 @@ class EmailCompanion:
     def send_report(self):
         logger.info("开始发送日报...")
         self.send_daily_report()
+    
+    def setup_cron_tasks(self):
+        """自动设置 OpenClaw 定时任务"""
+        logger.info("开始设置定时任务...")
+        
+        skill_dir = os.path.dirname(os.path.abspath(__file__))
+        scan_cmd = f"cd {skill_dir} && python3 main.py --scan"
+        report_cmd = f"cd {skill_dir} && python3 main.py --report"
+        
+        try:
+            # 添加扫描任务
+            result = subprocess.run(
+                ['openclaw', 'cron', 'add', '--name', 'email:scan', '--cron', '*/15 * * * *', '--command', scan_cmd],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                logger.info("✅ 邮件扫描任务已设置（每 15 分钟）")
+            else:
+                logger.warning(f"扫描任务可能已存在：{result.stderr}")
+            
+            # 添加日报任务
+            result = subprocess.run(
+                ['openclaw', 'cron', 'add', '--name', 'email:daily', '--cron', '0 8 * * *', '--command', report_cmd],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                logger.info("✅ 日报发送任务已设置（每天早上 8 点）")
+            else:
+                logger.warning(f"日报任务可能已存在：{result.stderr}")
+            
+            logger.info("✅ 定时任务设置完成")
+            return True
+        except Exception as e:
+            logger.error(f"设置定时任务失败：{e}")
+            return False
 
 
 def main():
     parser = argparse.ArgumentParser(description='Email Companion - 邮件伴侣')
     parser.add_argument('--scan', action='store_true', help='扫描邮件')
     parser.add_argument('--report', action='store_true', help='发送日报')
+    parser.add_argument('--setup', action='store_true', help='设置定时任务')
     parser.add_argument('--config', type=str, help='配置文件路径')
     args = parser.parse_args()
+    
     companion = EmailCompanion(config_path=args.config)
+    
     if args.scan:
         companion.scan_and_classify()
     elif args.report:
         companion.send_report()
+    elif args.setup:
+        companion.setup_cron_tasks()
     else:
         parser.print_help()
 

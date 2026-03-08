@@ -3,9 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.env
 
 # 配置文件（包含敏感信息）
 config.json
+*.local.json
 
 # 日志文件
 *.log
@@ -13,6 +15,7 @@ email_companion.log
 
 # 数据文件
 memory/
+data/
 
 # IDE
 .vscode/
