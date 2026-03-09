@@ -619,7 +619,76 @@ def main():
     parser.add_argument('--report', action='store_true', help='发送日报')
     parser.add_argument('--setup', action='store_true', help='设置定时任务')
     parser.add_argument('--config', type=str, help='配置文件路径')
+    parser.add_argument('--init', action='store_true', help='初始化配置（交互式）')
+    parser.add_argument('--email', type=str, help='邮箱地址')
+    parser.add_argument('--auth', type=str, help='邮箱授权码')
+    parser.add_argument('--to', type=str, help='收件人邮箱')
     args = parser.parse_args()
+    
+    # 初始化配置模式
+    if args.init or (args.email and args.auth):
+        print("=" * 60)
+        print("📧 Email Companion - 快速配置")
+        print("=" * 60)
+        
+        skill_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(skill_dir, 'config.json')
+        
+        # 获取配置
+        email = args.email or input("\n请输入你的邮箱地址：").strip()
+        auth_code = args.auth or input("请输入邮箱授权码：").strip()
+        to_email = args.to or input("请输入接收日报的邮箱（直接回车使用相同邮箱）：").strip()
+        
+        if not to_email:
+            to_email = email
+        
+        # 自动识别邮箱类型
+        email_domain = email.split('@')[1].lower()
+        if 'qq' in email_domain:
+            provider = 'qq'
+            smtp = 'smtp.qq.com'
+            imap = 'imap.qq.com'
+        elif '163' in email_domain:
+            provider = '163'
+            smtp = 'smtp.163.com'
+            imap = 'imap.163.com'
+        else:
+            print("⚠️  未识别邮箱类型，默认使用 163 配置")
+            provider = '163'
+            smtp = 'smtp.163.com'
+            imap = 'imap.163.com'
+        
+        # 创建配置
+        config = {
+            "user_email": email,
+            "email_provider": provider,
+            "email_password": auth_code,
+            "smtp_server": smtp,
+            "smtp_port": 465,
+            "imap_server": imap,
+            "imap_port": 993,
+            "scan_interval": 15,
+            "report_time": "08:00",
+            "timezone": "Asia/Shanghai",
+            "keywords": {
+                "important": ["面试", "Offer", "简历", "入职", "笔试", "工资", "薪资", "账单", "发票", "重要", "紧急", "合同", "协议"],
+                "spam": ["验证码", "推广", "营销", "订阅", "优惠"]
+            },
+            "emotional_support": {"enabled": True, "min_length": 2000, "max_length": 5000},
+            "security": {"allow_external_send": True, "require_confirm_new_recipient": False}
+        }
+        
+        # 保存配置
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        
+        print(f"\n✅ 配置已保存：{config_path}")
+        print(f"📧 发件邮箱：{email}")
+        print(f"📮 收件邮箱：{to_email}")
+        print("\n运行以下命令测试：")
+        print("  python3 main.py --scan    # 扫描邮件")
+        print("  python3 main.py --report  # 发送日报")
+        return
     
     companion = EmailCompanion(config_path=args.config)
     
