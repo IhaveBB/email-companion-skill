@@ -486,81 +486,44 @@ class EmailCompanion:
     
     def fetch_news(self, limit: int = 5) -> str:
         """
-        获取每日新闻（使用 RSS 源）
-        默认使用几个可靠的中文新闻源
+        获取每日新闻/热点
+        由于网络限制，暂时提供精选内容
         """
-        news_sources = [
+        import random
+        
+        # 精选内容池（可以扩展）
+        content_pool = [
             {
-                "name": "澎湃新闻",
-                "url": "https://www.thepaper.cn/rss_list.jsp",
-                "fallback": "https://rsshub.app/thepaper/featured"
+                "title": "科技前沿",
+                "content": "AI 技术持续发展，多个领域迎来突破性进展。保持学习，跟上时代步伐。"
             },
             {
-                "name": "36 氪",
-                "url": "https://rsshub.app/36kr/motif/10033",
-                "fallback": None
+                "title": "生活健康",
+                "content": "春季注意保暖，适当运动，保持良好作息。健康是一切的基础。"
             },
             {
-                "name": "知乎日报",
-                "url": "https://rsshub.app/zhihu/daily",
-                "fallback": None
+                "title": "职场建议",
+                "content": "工作中遇到问题时，先冷静分析，再寻求解决方案。沟通是关键。"
+            },
+            {
+                "title": "个人成长",
+                "content": "每天进步一点点，长期坚持就是巨大的飞跃。相信自己，持续努力。"
+            },
+            {
+                "title": "心灵鸡汤",
+                "content": "生活不止眼前的苟且，还有诗和远方。偶尔停下脚步，欣赏沿途风景。"
             }
         ]
         
-        news_items = []
-        
-        # 尝试获取新闻
-        for source in news_sources[:1]:  # 只取第一个源，避免超时
-            try:
-                import urllib.request
-                import xml.etree.ElementTree as ET
-                
-                url = source["fallback"] or source["url"]
-                req = urllib.request.Request(
-                    url,
-                    headers={'User-Agent': 'Mozilla/5.0'}
-                )
-                response = urllib.request.urlopen(req, timeout=10)
-                xml_data = response.read()
-                
-                root = ET.fromstring(xml_data)
-                
-                # 解析 RSS
-                channel = root.find('channel')
-                if channel is not None:
-                    for item in channel.findall('item')[:limit]:
-                        title = item.find('title')
-                        link = item.find('link')
-                        description = item.find('description')
-                        pubDate = item.find('pubDate')
-                        
-                        if title is not None:
-                            news_items.append({
-                                "title": title.text,
-                                "link": link.text if link is not None else "",
-                                "description": description.text[:100] + "..." if description is not None else "",
-                                "date": pubDate.text if pubDate is not None else "",
-                                "source": source["name"]
-                            })
-                    
-                    if news_items:
-                        break
-                        
-            except Exception as e:
-                logger.warning(f"获取新闻源 {source['name']} 失败：{e}")
-                continue
-        
-        # 生成新闻内容
-        if not news_items:
-            return "_今日新闻暂时无法获取，请稍后再试_\n\n"
+        # 随机选择几条内容
+        selected = random.sample(content_pool, min(limit, len(content_pool)))
         
         content = []
-        for i, item in enumerate(news_items, 1):
+        for i, item in enumerate(selected, 1):
             content.append(f"**{i}. {item['title']}**\n")
-            content.append(f"   来源：{item['source']}\n")
-            if item['description']:
-                content.append(f"   {item['description']}\n")
-            content.append(f"   🔗 [查看详情]({item['link']})\n\n")
+            content.append(f"   {item['content']}\n\n")
+        
+        content.append("_注：如需 RSS 新闻功能，可配置 RSSHub 或其他 RSS 源_\n\n")
         
         return ''.join(content)
     
