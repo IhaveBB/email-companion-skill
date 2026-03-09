@@ -14,6 +14,8 @@ import imaplib
 import email
 import socket
 import ssl
+import urllib.request
+import xml.etree.ElementTree as ET
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -250,7 +252,8 @@ class EmailCompanion:
         return 'normal'
     
     def send_email(self, to_email: str, subject: str, body: str) -> bool:
-        if to_email != self.config['user_email']:
+        # 检查是否允许发送外部邮件
+        if to_email != self.config['user_email'] and not self.config.get('security', {}).get('allow_external_send', False):
             logger.error("禁止发送外部邮件")
             return False
         try:
@@ -385,15 +388,47 @@ class EmailCompanion:
     
     def _get_comfort_text(self) -> str:
         texts = [
-            """我知道你现在可能感觉很累，很疲惫。没关系的，这种感觉是正常的。每个人都会经历低谷期，这并不代表你不够好。回想一下，你已经走过了那么多困难的日子，每一次你都挺过来了，这次也一定可以的。不要对自己太苛刻，允许自己有情绪，允许自己休息，这都不是软弱，而是对自己的温柔。\n\n""",
-            """生活有时候就像天气，有晴天，也会有雨天。现在的你可能正处在雨季，但请相信，雨总会停的。在这之前，请允许自己慢下来，好好照顾自己，等待阳光重新出现的那一天。\n\n"""
+            """我知道你现在可能感觉很累，很疲惫。没关系的，这种感觉是正常的。每个人都会经历低谷期，这并不代表你不够好。回想一下，你已经走过了那么多困难的日子，每一次你都挺过来了，这次也一定可以的。不要对自己太苛刻，允许自己有情绪，允许自己休息，这都不是软弱，而是对自己的温柔。
+
+有时候，我们会觉得自己不够好，觉得自己做得不够多，但其实，你已经很努力了。生活中的每一个人都有自己的节奏，有人走得快一些，有人走得慢一些，但这并不影响最终到达目的地。重要的是，你一直在前进，哪怕步伐很小，那也是进步。
+
+记住，照顾好自己的情绪和身体，比什么都重要。累了就停下来休息，难过了就找个信任的人倾诉，或者写下来，把那些沉重的东西释放出来。你不是一个人在战斗，你身边有家人、朋友，还有我，我们都会陪着你，支持你。
+
+请相信，黑暗总会过去，黎明终会到来。在这之前，请好好照顾自己，按时吃饭，适当运动，保证睡眠。这些看似简单的事情，其实都是在为自己积蓄力量。等你重新站起来的那一天，你会感谢现在这个没有放弃的自己。\n\n""",
+            """生活有时候就像天气，有晴天，也会有雨天。现在的你可能正处在雨季，但请相信，雨总会停的。在这之前，请允许自己慢下来，好好照顾自己，等待阳光重新出现的那一天。
+
+人生路上，我们都会遇到各种各样的挑战和困难。有时候是工作上的压力，有时候是人际关系的烦恼，有时候是生活中的琐碎。这些事情堆积在一起，会让人感到喘不过气来。但是，请记住，这些都是暂时的，它们不会定义你的人生。
+
+你比自己想象的要坚强得多。回想一下过去，那些曾经以为过不去的坎，现在不也都过来了吗？每一次的挫折，都是成长的机会；每一次的困难，都是磨练意志的过程。你已经在不知不觉中，变得更加强大。
+
+所以，不要对自己太苛刻。允许自己有不完美的地方，允许自己有情绪波动，允许自己偶尔偷懒。这些都是人之常情，都是正常的。重要的是，在经历了这些之后，你还能重新站起来，继续前行。
+
+我会一直在这里陪着你，倾听你的心声，支持你的决定。无论何时何地，你都不是一个人。\n\n"""
         ]
         return random.choice(texts)
     
     def _get_encouragement_text(self) -> str:
         texts = [
-            """看到你状态不错，真为你感到开心！继续保持这样的节奏，但也别忘了适当休息哦。记住，好的状态是持续努力的结果，你付出的每一分努力，都在为未来积蓄力量。\n\n""",
-            """生活的美好，往往藏在那些看似平凡的日常里。珍惜当下的每一刻，无论是喜悦还是平静，都是生命给予我们的礼物。继续保持热爱，奔赴下一场山海。\n\n"""
+            """看到你状态不错，真为你感到开心！继续保持这样的节奏，但也别忘了适当休息哦。记住，好的状态是持续努力的结果，你付出的每一分努力，都在为未来积蓄力量。
+
+人生就像一场马拉松，不在于一时的速度，而在于持久的坚持。你已经走在了正确的道路上，每一步都算数，每一滴汗水都不会白流。也许有时候会感到疲惫，也许有时候会怀疑自己，但请相信，所有的付出都会有回报，只是时间的问题。
+
+保持一颗积极向上的心，学会欣赏生活中的小美好。一杯热茶的温度，一缕阳光的和煦，一句问候的温暖，这些都是生活给予我们的馈赠。学会感恩，学会珍惜，你会发现，幸福其实就在身边。
+
+同时，也要记得给自己一些放松的时间。工作再忙，也要抽出时间做自己喜欢的事情；生活再累，也要保证充足的睡眠。只有身心都得到了充分的休息，才能以更好的状态迎接新的挑战。
+
+继续加油吧！你比自己想象的更优秀，你的未来充满无限可能。无论遇到什么困难，都要相信自己有能力克服。我会一直在这里为你加油，为你喝彩！\n\n""",
+            """生活的美好，往往藏在那些看似平凡的日常里。珍惜当下的每一刻，无论是喜悦还是平静，都是生命给予我们的礼物。继续保持热爱，奔赴下一场山海。
+
+每一天都是新的开始，每一次呼吸都是生命的馈赠。不要总是盯着远方的目标，而忽略了身边的美好。停下来，看看周围的风景，听听内心的声音，感受一下生活的温度和质感。
+
+你正在成为一个更好的自己，这个过程可能很慢，可能很艰难，但每一步都值得。不要和别人比较，每个人都有自己的节奏和轨迹。你只需要和昨天的自己比较，只要今天比昨天进步一点点，那就是成功。
+
+保持好奇心，保持学习的热情。世界很大，知识很多，永远有新的东西等着你去探索。学习不只是为了工作或成就，更是为了丰富自己的内心世界，让自己成为一个更有趣、更有深度的人。
+
+记住，你值得拥有美好的一切。不要吝啬对自己的赞美，不要忽视自己的成就。每完成一个小目标，都给自己一个奖励；每取得一点进步，都为自己感到骄傲。
+
+继续前行吧，带着热爱和勇气。前路漫漫，但未来可期。我会一直在这里，见证你的成长，分享你的喜悦。\n\n"""
         ]
         return random.choice(texts)
     
@@ -445,8 +480,89 @@ class EmailCompanion:
         report.append(self.generate_emotional_support())
         report.append("\n\n")
         report.append("## 📰 每日新闻\n\n")
-        report.append("_新闻功能待实现，可接入 RSS 源_\n\n")
+        report.append(self.fetch_news())
+        report.append("\n\n")
         return ''.join(report)
+    
+    def fetch_news(self, limit: int = 5) -> str:
+        """
+        获取每日新闻（使用 RSS 源）
+        默认使用几个可靠的中文新闻源
+        """
+        news_sources = [
+            {
+                "name": "澎湃新闻",
+                "url": "https://www.thepaper.cn/rss_list.jsp",
+                "fallback": "https://rsshub.app/thepaper/featured"
+            },
+            {
+                "name": "36 氪",
+                "url": "https://rsshub.app/36kr/motif/10033",
+                "fallback": None
+            },
+            {
+                "name": "知乎日报",
+                "url": "https://rsshub.app/zhihu/daily",
+                "fallback": None
+            }
+        ]
+        
+        news_items = []
+        
+        # 尝试获取新闻
+        for source in news_sources[:1]:  # 只取第一个源，避免超时
+            try:
+                import urllib.request
+                import xml.etree.ElementTree as ET
+                
+                url = source["fallback"] or source["url"]
+                req = urllib.request.Request(
+                    url,
+                    headers={'User-Agent': 'Mozilla/5.0'}
+                )
+                response = urllib.request.urlopen(req, timeout=10)
+                xml_data = response.read()
+                
+                root = ET.fromstring(xml_data)
+                
+                # 解析 RSS
+                channel = root.find('channel')
+                if channel is not None:
+                    for item in channel.findall('item')[:limit]:
+                        title = item.find('title')
+                        link = item.find('link')
+                        description = item.find('description')
+                        pubDate = item.find('pubDate')
+                        
+                        if title is not None:
+                            news_items.append({
+                                "title": title.text,
+                                "link": link.text if link is not None else "",
+                                "description": description.text[:100] + "..." if description is not None else "",
+                                "date": pubDate.text if pubDate is not None else "",
+                                "source": source["name"]
+                            })
+                    
+                    if news_items:
+                        break
+                        
+            except Exception as e:
+                logger.warning(f"获取新闻源 {source['name']} 失败：{e}")
+                continue
+        
+        # 生成新闻内容
+        if not news_items:
+            return "_今日新闻暂时无法获取，请稍后再试_\n\n"
+        
+        content = []
+        for i, item in enumerate(news_items, 1):
+            content.append(f"**{i}. {item['title']}**\n")
+            content.append(f"   来源：{item['source']}\n")
+            if item['description']:
+                content.append(f"   {item['description']}\n")
+            content.append(f"   🔗 [查看详情]({item['link']})\n\n")
+        
+        return ''.join(content)
     
     def _get_morning_greeting(self) -> str:
         greetings = [
@@ -458,8 +574,10 @@ class EmailCompanion:
     
     def send_daily_report(self):
         report = self.generate_daily_report()
+        # 日报发送到 Outlook 邮箱
+        to_email = "IhaveBB@outlook.com"
         success = self.send_email(
-            self.config['user_email'],
+            to_email,
             f"每日邮件总结 - {datetime.now().strftime('%Y-%m-%d')}",
             report
         )

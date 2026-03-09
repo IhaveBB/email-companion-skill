@@ -2,7 +2,7 @@
   "_comment": "配置模板 - 请复制为 config.json 并填写你的邮箱信息",
   "user_email": "your_email@qq.com",
   "email_provider": "qq",
-  "email_password": "your_auth_code",
+  "email_password": "your_auth_code_here",
   "smtp_server": "smtp.qq.com",
   "smtp_port": 465,
   "imap_server": "imap.qq.com",
@@ -14,6 +14,19 @@
     "important": ["面试", "Offer", "简历", "入职", "笔试", "工资", "薪资", "账单", "发票", "重要", "紧急", "合同", "协议"],
     "spam": ["验证码", "推广", "营销", "订阅", "优惠"]
   },
-  "emotional_support": {"enabled": true, "min_length": 2000, "max_length": 5000},
-  "security": {"allow_external_send": false, "require_confirm_new_recipient": true}
+  "emotional_support": {
+    "enabled": true,
+    "min_length": 2000,
+    "max_length": 5000
+  },
+  "security": {
+    "allow_external_send": false,
+    "require_confirm_new_recipient": true
+  },
+  "_tips": {
+    "auth_code": "授权码需要在邮箱设置中获取，不是登录密码",
+    "qq_setup": "QQ 邮箱：设置→账户→开启 IMAP/SMTP 服务→生成授权码",
+    "163_setup": "163 邮箱：设置→POP3/SMTP/IMAP→开启服务→设置授权码",
+    "security_note": "config.json 包含敏感信息，已被加入.gitignore，请勿上传到公开仓库"
+  }
 }
