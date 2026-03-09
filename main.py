@@ -486,44 +486,52 @@ class EmailCompanion:
     
     def fetch_news(self, limit: int = 5) -> str:
         """
-        获取每日新闻/热点
-        由于网络限制，暂时提供精选内容
+        获取每日新闻/热点 + 随机惊喜
         """
         import random
         
-        # 精选内容池（可以扩展）
-        content_pool = [
-            {
-                "title": "科技前沿",
-                "content": "AI 技术持续发展，多个领域迎来突破性进展。保持学习，跟上时代步伐。"
-            },
-            {
-                "title": "生活健康",
-                "content": "春季注意保暖，适当运动，保持良好作息。健康是一切的基础。"
-            },
-            {
-                "title": "职场建议",
-                "content": "工作中遇到问题时，先冷静分析，再寻求解决方案。沟通是关键。"
-            },
-            {
-                "title": "个人成长",
-                "content": "每天进步一点点，长期坚持就是巨大的飞跃。相信自己，持续努力。"
-            },
-            {
-                "title": "心灵鸡汤",
-                "content": "生活不止眼前的苟且，还有诗和远方。偶尔停下脚步，欣赏沿途风景。"
-            }
+        # 精选内容池
+        news_pool = [
+            {"title": "科技前沿", "content": "AI 技术持续发展，多个领域迎来突破性进展。保持学习，跟上时代步伐。"},
+            {"title": "生活健康", "content": "春季注意保暖，适当运动，保持良好作息。健康是一切的基础。"},
+            {"title": "职场建议", "content": "工作中遇到问题时，先冷静分析，再寻求解决方案。沟通是关键。"},
+            {"title": "个人成长", "content": "每天进步一点点，长期坚持就是巨大的飞跃。相信自己，持续努力。"},
         ]
         
-        # 随机选择几条内容
-        selected = random.sample(content_pool, min(limit, len(content_pool)))
+        # 随机惊喜池
+        surprise_pool = [
+            "🎁 今日惊喜：你真的很棒！记得给自己一个微笑~",
+            "🌟 今日惊喜：今天会有好事发生，保持期待！",
+            "💝 今日惊喜：有人正在想着你，也许下一秒就会联系你~",
+            "🍀 今日惊喜：幸运正在向你靠近，抓住机会哦！",
+            "✨ 今日惊喜：你的努力终将会有回报，继续加油！",
+        ]
+        
+        # 每日金句池
+        quote_pool = [
+            "生活不是等待风暴过去，而是学会在雨中跳舞。",
+            "每一个不曾起舞的日子，都是对生命的辜负。——尼采",
+            "成功不是终点，失败也不是致命的，重要的是继续前进的勇气。——丘吉尔",
+            "你比自己想象的更坚强。",
+            "最好的报复就是巨大的成功。——孔子",
+        ]
         
         content = []
-        for i, item in enumerate(selected, 1):
+        
+        # 精选内容（2 条）
+        content.append("**📰 今日精选**\n\n")
+        selected_news = random.sample(news_pool, 2)
+        for i, item in enumerate(selected_news, 1):
             content.append(f"**{i}. {item['title']}**\n")
             content.append(f"   {item['content']}\n\n")
         
-        content.append("_注：如需 RSS 新闻功能，可配置 RSSHub 或其他 RSS 源_\n\n")
+        # 随机惊喜
+        content.append("**🎁 随机惊喜**\n\n")
+        content.append(f"{random.choice(surprise_pool)}\n\n")
+        
+        # 每日金句
+        content.append("**💬 每日金句**\n\n")
+        content.append(f"\"{random.choice(quote_pool)}\"\n\n")
         
         return ''.join(content)
     
@@ -614,80 +622,35 @@ class EmailCompanion:
 
 
 def main():
+    """
+    Email Companion 主入口
+    全自动运行 - 由 OpenClaw 定时任务调用
+    """
     parser = argparse.ArgumentParser(description='Email Companion - 邮件伴侣')
     parser.add_argument('--scan', action='store_true', help='扫描邮件')
     parser.add_argument('--report', action='store_true', help='发送日报')
     parser.add_argument('--setup', action='store_true', help='设置定时任务')
     parser.add_argument('--config', type=str, help='配置文件路径')
-    parser.add_argument('--init', action='store_true', help='初始化配置（交互式）')
-    parser.add_argument('--email', type=str, help='邮箱地址')
-    parser.add_argument('--auth', type=str, help='邮箱授权码')
-    parser.add_argument('--to', type=str, help='收件人邮箱')
     args = parser.parse_args()
     
-    # 初始化配置模式
-    if args.init or (args.email and args.auth):
+    skill_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(skill_dir, 'config.json')
+    
+    # 检查配置是否存在
+    if not os.path.exists(config_path):
         print("=" * 60)
-        print("📧 Email Companion - 快速配置")
+        print("📧 Email Companion - 首次使用配置")
         print("=" * 60)
-        
-        skill_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(skill_dir, 'config.json')
-        
-        # 获取配置
-        email = args.email or input("\n请输入你的邮箱地址：").strip()
-        auth_code = args.auth or input("请输入邮箱授权码：").strip()
-        to_email = args.to or input("请输入接收日报的邮箱（直接回车使用相同邮箱）：").strip()
-        
-        if not to_email:
-            to_email = email
-        
-        # 自动识别邮箱类型
-        email_domain = email.split('@')[1].lower()
-        if 'qq' in email_domain:
-            provider = 'qq'
-            smtp = 'smtp.qq.com'
-            imap = 'imap.qq.com'
-        elif '163' in email_domain:
-            provider = '163'
-            smtp = 'smtp.163.com'
-            imap = 'imap.163.com'
-        else:
-            print("⚠️  未识别邮箱类型，默认使用 163 配置")
-            provider = '163'
-            smtp = 'smtp.163.com'
-            imap = 'imap.163.com'
-        
-        # 创建配置
-        config = {
-            "user_email": email,
-            "email_provider": provider,
-            "email_password": auth_code,
-            "smtp_server": smtp,
-            "smtp_port": 465,
-            "imap_server": imap,
-            "imap_port": 993,
-            "scan_interval": 15,
-            "report_time": "08:00",
-            "timezone": "Asia/Shanghai",
-            "keywords": {
-                "important": ["面试", "Offer", "简历", "入职", "笔试", "工资", "薪资", "账单", "发票", "重要", "紧急", "合同", "协议"],
-                "spam": ["验证码", "推广", "营销", "订阅", "优惠"]
-            },
-            "emotional_support": {"enabled": True, "min_length": 2000, "max_length": 5000},
-            "security": {"allow_external_send": True, "require_confirm_new_recipient": False}
-        }
-        
-        # 保存配置
-        with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-        
-        print(f"\n✅ 配置已保存：{config_path}")
-        print(f"📧 发件邮箱：{email}")
-        print(f"📮 收件邮箱：{to_email}")
-        print("\n运行以下命令测试：")
-        print("  python3 main.py --scan    # 扫描邮件")
-        print("  python3 main.py --report  # 发送日报")
+        print("\n⚠️  检测到首次使用，需要先配置邮箱信息")
+        print("\n请通过以下方式之一配置：")
+        print("\n方式 1：使用 install.py 安装向导")
+        print("  python3 install.py")
+        print("\n方式 2：手动创建 config.json")
+        print(f"  路径：{config_path}")
+        print("  参考：config.example.json")
+        print("\n方式 3：命令行快速配置")
+        print("  python3 main.py --quick-setup")
+        print("=" * 60)
         return
     
     companion = EmailCompanion(config_path=args.config)

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Email Companion 安装脚本
-自动配置邮箱和定时任务
+自动配置邮箱和定时任务 - 全自动运行
 """
 
 import os
@@ -11,8 +11,11 @@ import sys
 
 def main():
     print("=" * 60)
-    print("📧 Email Companion - 邮件伴侣 安装向导")
+    print("📧 Email Companion - 邮件伴侣")
     print("=" * 60)
+    print()
+    print("欢迎使用！这是一个全自动的邮件管理技能")
+    print("配置完成后会自动运行，无需手动操作")
     print()
     
     # 获取当前脚本目录
