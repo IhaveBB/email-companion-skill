@@ -12,6 +12,8 @@ import logging
 import smtplib
 import imaplib
 import email
+import socket
+import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -69,12 +71,48 @@ class EmailCompanion:
             return json.load(f)
     
     def connect_imap(self):
+        """
+        连接 IMAP 服务器
+        163 邮箱需要使用 ID 命令 (RFC 2971) 来解决 "SELECT Unsafe Login" 错误
+        """
         try:
-            mail = imaplib.IMAP4_SSL(self.config['imap_server'], self.config['imap_port'])
-            mail.login(self.config['user_email'], self.config['email_password'])
-            mail.select('inbox')
-            logger.info("IMAP 连接成功")
-            return mail
+            # 创建 SSL socket 连接
+            sock = socket.create_connection((self.config['imap_server'], self.config['imap_port']), timeout=30)
+            sock = ssl.wrap_socket(sock)
+            
+            # 读取欢迎消息
+            welcome = sock.recv(1024).decode('utf-8', errors='ignore')
+            logger.debug(f"IMAP 欢迎：{welcome.strip()}")
+            
+            # 发送 ID 命令 (163 邮箱必需)
+            sock.send(b'a001 ID ("NAME" "Python" "VERSION" "3.6")\r\n')
+            id_response = sock.recv(1024).decode('utf-8', errors='ignore')
+            logger.info(f"IMAP ID 响应：{id_response.strip()[:100]}")
+            
+            # 登录
+            user = self.config['user_email'].encode('utf-8')
+            pwd = self.config['email_password'].encode('utf-8')
+            sock.send(f'a002 LOGIN "{self.config["user_email"]}" "{self.config["email_password"]}"\r\n'.encode())
+            login_response = sock.recv(1024).decode('utf-8', errors='ignore')
+            if 'OK' not in login_response:
+                logger.error(f"IMAP 登录失败：{login_response}")
+                sock.close()
+                return None
+            logger.info("IMAP 登录成功")
+            
+            # 选择 INBOX
+            import time
+            time.sleep(0.5)
+            sock.send(b'a003 SELECT INBOX\r\n')
+            select_response = sock.recv(2048).decode('utf-8', errors='ignore')
+            if 'OK' not in select_response:
+                logger.error(f"IMAP SELECT 失败：{select_response}")
+                sock.close()
+                return None
+            logger.info("IMAP SELECT INBOX 成功")
+            
+            # 返回 socket 连接（后续用 send 命令操作）
+            return sock
         except Exception as e:
             logger.error(f"IMAP 连接失败：{e}")
             return None
@@ -90,34 +128,79 @@ class EmailCompanion:
             return None
     
     def scan_emails(self) -> List[Dict]:
-        mail = self.connect_imap()
-        if not mail:
+        sock = self.connect_imap()
+        if not sock:
             return []
         try:
-            status, messages = mail.search(None, 'UNSEEN')
-            email_ids = messages[0].split()
+            import time
+            time.sleep(0.5)
+            
+            # 搜索未读邮件
+            sock.send(b'a004 SEARCH UNSEEN\r\n')
+            search_response = sock.recv(4096).decode('utf-8', errors='ignore')
+            logger.info(f"SEARCH 响应：{search_response.strip()[:200]}")
+            
+            if 'OK' not in search_response:
+                logger.warning(f"搜索未读邮件失败：{search_response}")
+                return []
+            
+            # 解析邮件 ID 列表
+            parts = search_response.strip().split('\r\n')
+            email_ids = []
+            for part in parts:
+                if '* SEARCH' in part:
+                    ids = part.replace('* SEARCH', '').strip().split()
+                    email_ids = [id.encode() for id in ids if id.isdigit()]
+                    break
+            
+            if not email_ids:
+                logger.info("没有未读邮件")
+                return []
+            
+            logger.info(f"找到 {len(email_ids)} 封未读邮件")
+            
+            # 获取最新 10 封邮件
             emails = []
-            for e_id in email_ids:
-                status, msg_data = mail.fetch(e_id, '(RFC822)')
-                for response in msg_data:
-                    if isinstance(response, tuple):
-                        msg = email.message_from_bytes(response[1])
-                        email_data = {
-                            'id': e_id.decode(),
-                            'subject': self._decode_subject(msg['Subject']),
-                            'from': msg['From'],
-                            'date': msg['Date'],
-                            'body': self._get_email_body(msg),
-                            'timestamp': datetime.now().isoformat()
-                        }
-                        emails.append(email_data)
-                        logger.info(f"收到邮件：{email_data['subject']}")
+            for e_id in email_ids[-10:]:
+                sock.send(f'a005 FETCH {e_id.decode()} (RFC822)\r\n'.encode())
+                fetch_response = sock.recv(65536).decode('utf-8', errors='ignore')
+                
+                # 解析邮件内容
+                if 'RFC822' in fetch_response:
+                    try:
+                        # 提取邮件原始数据
+                        start = fetch_response.find('RFC822') + 7
+                        end = fetch_response.rfind(')')
+                        if start < end:
+                            email_data_raw = fetch_response[start:end].strip()
+                            # 处理 literal 数据 {n}
+                            if email_data_raw.startswith('{'):
+                                brace_end = email_data_raw.find('}')
+                                email_data_raw = email_data_raw[brace_end+1:].strip()
+                            
+                            msg = email.message_from_string(email_data_raw)
+                            email_data = {
+                                'id': e_id.decode(),
+                                'subject': self._decode_subject(msg['Subject']),
+                                'from': msg['From'],
+                                'date': msg['Date'],
+                                'body': self._get_email_body(msg),
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            emails.append(email_data)
+                            logger.info(f"收到邮件：{email_data['subject'][:50]}")
+                    except Exception as e:
+                        logger.warning(f"解析邮件失败：{e}")
+            
             return emails
         except Exception as e:
             logger.error(f"扫描邮件失败：{e}")
             return []
         finally:
-            mail.close()
+            try:
+                sock.close()
+            except:
+                pass
     
     def _decode_subject(self, subject: str) -> str:
         if not subject:
